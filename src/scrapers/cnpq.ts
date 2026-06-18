@@ -6,12 +6,34 @@ import { gerarId } from "../hash";
 
 const INSTITUICAO = "CNPq";
 
+// Palavras que indicam que NÃO é um edital
+const BLACKLIST = [
+  "termos de uso", "governo digital", "política de", "privacidade",
+  "acessibilidade", "mapa do site", "fale conosco", "ouvidoria",
+  "sobre o portal", "conheça o portal", "elementos do portal",
+  "secretaria", "ministério", "login", "entrar", "cadastro",
+  "home", "início", "voltar", "menu"
+];
+
+// Palavras que confirmam que É um edital
+const WHITELIST = [
+  "chamada", "edital", "seleção", "bolsa", "auxílio", "cnpq",
+  "pesquisa", "fomento", "programa", "oportunidade", "proposta",
+  "submissão", "inscrição", "universal", "mcti", "produtividade"
+];
+
+function isEdital(texto: string): boolean {
+  const lower = texto.toLowerCase();
+  if (BLACKLIST.some(b => lower.includes(b))) return false;
+  if (texto.length < 15 || texto.length > 300) return false;
+  return WHITELIST.some(w => lower.includes(w));
+}
+
 export async function scraperCnpq(): Promise<ResultadoScraper> {
   const editaisMap = new Map<string, Edital>();
 
   const urls = [
     "https://www.gov.br/cnpq/pt-br/chamadas/abertas-para-submissao",
-    "https://www.gov.br/cnpq/pt-br/assuntos/noticias/chamadas-e-selecoes",
   ];
 
   for (const url of urls) {
@@ -26,12 +48,12 @@ export async function scraperCnpq(): Promise<ResultadoScraper> {
       });
       const $ = cheerio.load(data);
 
-      // Portal gov.br — artigos e listagens
-      $("article, .tileItem, .summary-view-item, li").each((_, el) => {
+      // Busca em artigos e itens de lista primeiro
+      $("article, .tileItem, .summary-view-item").each((_, el) => {
         const tituloEl = $(el).find("h2 a, h3 a, a").first();
         const titulo = tituloEl.text().trim();
         const href = tituloEl.attr("href") ?? "";
-        if (titulo.length < 10) return;
+        if (!isEdital(titulo)) return;
 
         const contexto = $(el).text().trim();
         const dataMatch = contexto.match(/(\d{2}\/\d{2}\/\d{4})/);
@@ -48,13 +70,13 @@ export async function scraperCnpq(): Promise<ResultadoScraper> {
         });
       });
 
-      // Fallback: links diretos
+      // Fallback: qualquer link que passe pelo filtro
       if (editaisMap.size === 0) {
         $("a").each((_, el) => {
           const titulo = $(el).text().trim();
           const href = $(el).attr("href") ?? "";
-          if (titulo.length < 15) return;
-          if (!/(chamada|edital|seleção|bolsa|cnpq)/i.test(titulo)) return;
+          if (!isEdital(titulo)) return;
+          if (!href.includes("cnpq") && !href.includes("gov.br")) return;
 
           editaisMap.set(gerarId(titulo, INSTITUICAO), {
             id: gerarId(titulo, INSTITUICAO),
@@ -67,10 +89,8 @@ export async function scraperCnpq(): Promise<ResultadoScraper> {
           });
         });
       }
-
-      if (editaisMap.size > 0) break;
     } catch (erro) {
-      console.warn(`[cnpq] Erro em ${url}: ${erro}`);
+      console.warn(`[cnpq] Erro: ${erro}`);
     }
   }
 
