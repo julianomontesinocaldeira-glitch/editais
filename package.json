@@ -1,0 +1,24 @@
+{
+  "name": "radar-editais",
+  "version": "1.0.0",
+  "description": "Monitor de editais de fomento à inovação (FAPESP, Finep, CNPq, Embrapii, Sebrae)",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "check": "ts-node src/index.ts --dry-run"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "cheerio": "^1.0.0",
+    "node-cron": "^3.0.3"
+  },
+  "devDependencies": {
+    "@types/cheerio": "^0.22.35",
+    "@types/node": "^20.14.0",
+    "@types/node-cron": "^3.0.11",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}

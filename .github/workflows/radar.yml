@@ -1,0 +1,48 @@
+name: Radar de Editais
+
+on:
+  schedule:
+    # Roda às 08:00 horário de Brasília (BRT = UTC-3 → 11:00 UTC)
+    - cron: "0 11 * * *"
+  workflow_dispatch: # Permite execução manual pelo GitHub
+
+permissions:
+  contents: write # Necessário para commitar o estado.json atualizado
+
+jobs:
+  varredura:
+    name: Varrer editais e notificar
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Executar varredura
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_ONCE: "true"
+        run: node dist/index.js --run-once
+
+      - name: Commitar estado atualizado
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add estado.json
+          git diff --staged --quiet || git commit -m "chore: atualiza estado.json [skip ci]"
+          git push
